@@ -1,0 +1,225 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "leaf",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint256",
+				"name": "index",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "enables",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes32[]",
+				"name": "path",
+				"type": "bytes32[]"
+			}
+		],
+		"name": "InvalidProof",
+		"type": "error"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "secret",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "commitment",
+				"type": "bytes32"
+			}
+		],
+		"name": "CommitmentGenerated",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "secret",
+				"type": "bytes32"
+			}
+		],
+		"name": "generateCommitment",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"components": [
+					{
+						"components": [
+							{
+								"internalType": "bytes32",
+								"name": "nullifier",
+								"type": "bytes32"
+							},
+							{
+								"components": [
+									{
+										"internalType": "uint256[2]",
+										"name": "pA",
+										"type": "uint256[2]"
+									},
+									{
+										"internalType": "uint256[2][2]",
+										"name": "pB",
+										"type": "uint256[2][2]"
+									},
+									{
+										"internalType": "uint256[2]",
+										"name": "pC",
+										"type": "uint256[2]"
+									}
+								],
+								"internalType": "struct Harpo.Proof",
+								"name": "ownershipProof",
+								"type": "tuple"
+							}
+						],
+						"internalType": "struct Harpo.Input[]",
+						"name": "inputs",
+						"type": "tuple[]"
+					},
+					{
+						"components": [
+							{
+								"internalType": "bytes32",
+								"name": "secret",
+								"type": "bytes32"
+							}
+						],
+						"internalType": "struct Harpo.Output[]",
+						"name": "outputs",
+						"type": "tuple[]"
+					},
+					{
+						"internalType": "bytes",
+						"name": "massConservationProof",
+						"type": "bytes"
+					},
+					{
+						"internalType": "bytes",
+						"name": "auditSecret",
+						"type": "bytes"
+					},
+					{
+						"internalType": "bytes",
+						"name": "auditProof",
+						"type": "bytes"
+					}
+				],
+				"internalType": "struct Harpo.Transfer",
+				"name": "transfer",
+				"type": "tuple"
+			}
+		],
+		"name": "processTransfer",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "commitment",
+				"type": "bytes32"
+			}
+		],
+		"name": "commitmentExixts",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"name": "commitments",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "nullifier",
+				"type": "bytes32"
+			}
+		],
+		"name": "isNullifierUsed",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"name": "nullifiersUsed",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "poseidon",
+		"outputs": [
+			{
+				"internalType": "contract IPoseidon",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
