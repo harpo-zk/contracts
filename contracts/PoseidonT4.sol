@@ -21,23 +21,8 @@ library PoseidonT4 {
   uint constant M32 = 0x03f3e6fab791f16628168e4b14dbaeb657035ee3da6b2ca83f0c2491e0b403eb;
   uint constant M33 = 0x00c15fc3a1d5733dd835eae0823e377f8ba4a8b627627cc2bb661c25d20fb52a;
 
-  // See here for a simplified implementation: https://github.com/vimwitch/poseidon-solidity/blob/e57becdabb65d99fdc586fe1e1e09e7108202d53/contracts/Poseidon.sol#L40
-  // Inspired by: https://github.com/iden3/circomlibjs/blob/v0.0.8/src/poseidon_slow.js
   function hash(uint[3] memory) public pure returns (uint) {
-    assembly {
-      // memory 0x00 to 0x3f (64 bytes) is scratch space for hash algos
-      // we can use it in inline assembly because we're not calling e.g. keccak
-      //
-      // memory 0x80 is the default offset for free memory
-      // we take inputs as a memory argument so we simply write over
-      // that memory after loading it
-
-      // we have the following variables at memory offsets
-      // state0 - 0x00
-      // state1 - 0x20
-      // state2 - 0x80
-      // state3 - 0xa0
-      // state4 - ...
+    assembly {     
 
       function pRound(c0, c1, c2, c3) {
         let state0 := add(mload(0x0), c0)
@@ -74,8 +59,7 @@ library PoseidonT4 {
         mstore(0x80, mod(add(add(add(mulmod(state0, M02, F), mulmod(state1, M12, F)), mulmod(state2, M22, F)), mulmod(state3, M32, F)), F))
         mstore(0xa0, mod(add(add(add(mulmod(state0, M03, F), mulmod(state1, M13, F)), mulmod(state2, M23, F)), mulmod(state3, M33, F)), F))
       }
-
-      // scratch variable for exponentiation
+      
       let p
 
       {
@@ -89,9 +73,7 @@ library PoseidonT4 {
         p := mulmod(state2, state2, F)
         state2 := mulmod(mulmod(p, p, F), state2, F)
         p := mulmod(state3, state3, F)
-        state3 := mulmod(mulmod(p, p, F), state3, F)
-
-        // state0 pow5mod and M[] multiplications are pre-calculated
+        state3 := mulmod(mulmod(p, p, F), state3, F)      
 
         mstore(
           0x0,

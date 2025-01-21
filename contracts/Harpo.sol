@@ -1,36 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.27;
 
+import {Groth16Verifier_1x1} from "./1x1Verify.sol";
 import {Groth16Verifier_1x2} from "./1x2Verify.sol";
 import {Groth16Verifier_2x2} from "./2x2Verify.sol";
 import {SmtLib} from "./SmtLib.sol";
 import {PoseidonT4} from "./PoseidonT4.sol";
 import {PoseidonT6} from "./PoseidonT6.sol";
-interface IGrothVerifier {
-    function verifyProof14(
-        uint256[2] memory a,
-        uint256[2][2] memory b,
-        uint256[2] memory c,
-        uint256[] memory input
-    ) external view returns (bool);
-
-    function verifyProof16(
-        uint256[2] memory a,
-        uint256[2][2] memory b,
-        uint256[2] memory c,
-        uint256[] memory input
-    ) external view returns (bool);
-    //todo gerar 1x1 1x2 2x1 2x2 verifier e fazer merge pra testar
-}
 
 contract Harpo {
 
+    Groth16Verifier_1x1 internal verifier_1x1;
     Groth16Verifier_1x2 internal verifier_1x2;
     Groth16Verifier_2x2 internal verifier_2x2;   
-    constructor(Groth16Verifier_1x2 _verifier_1x2, Groth16Verifier_2x2 _verifier_2x2) {
+    constructor(Groth16Verifier_1x1 _verifier_1x1, Groth16Verifier_1x2 _verifier_1x2, Groth16Verifier_2x2 _verifier_2x2) {
+        verifier_1x1 = _verifier_1x1;
         verifier_1x2 = _verifier_1x2; 
         verifier_2x2 = _verifier_2x2; 
-        _commitments.initialize(uint256(16));//TODO valor arbitrario para testes       
+        _commitments.initialize(uint256(16));   
+    }
+    struct Proof12 {
+        uint[2] pA;
+        uint[2][2] pB;
+        uint[2] pC;
+        uint[12] inR;
     }
     struct Proof14 {
         uint[2] pA;
@@ -60,6 +53,14 @@ contract Harpo {
     }   
     struct Output {
         uint256[] secret;
+    }
+
+    struct Transfer1x1 {
+        Input[] inputs;             
+        uint256 merkleRoot;         
+        Output[] outputs;           
+        uint256[] auditSecret;        
+        Proof12 proof;         
     } 
     struct Transfer1x2 {
         Input[] inputs;             
@@ -76,6 +77,16 @@ contract Harpo {
         uint256[] auditSecret;        
         Proof16 proof;         
     }
+
+    struct DelegatedTransfer {
+        Input[] inputs;
+        uint256 merkleRoot;
+        Output[] outputs;
+        uint256[] counterpartAsset;
+        address settlementAgent;
+        uint256[] auditSecret;
+        Proof12 proof;// todo apto para transações 1x1
+    }
     
     event CommitmentGenerated(uint256 h1,uint256 d1,uint256 d2,uint256 commitment, uint256[] secret);
     
@@ -91,15 +102,73 @@ contract Harpo {
     error RootNotFound(uint256 merkleRoot);
     error CommitmentAlreadyExists(uint256 commitment);
 
-    mapping(uint256 => bool) public nullifiersUsed;//todo private
-    //mapping(bytes32 => bool) public commitments;
-
+    mapping(uint256 => bool) public nullifiersUsed;
     SmtLib.Data internal _commitments;
     using SmtLib for SmtLib.Data;
-
-    //todo validações , verificar se commitment já existe
+    
     function mint(uint256[] memory secret) public {                   
         _generateCommitment(secret);        
+    }
+
+    function processDelegatedTransfer(DelegatedTransfer memory transfer) public {
+        
+        require(transfer.settlementAgent == msg.sender, "Only the settlement agent can call this function");    
+
+
+        if (!_commitments.rootExists(transfer.merkleRoot)) {
+            revert RootNotFound(transfer.merkleRoot);
+        }
+
+        for (uint i = 0; i < transfer.inputs.length; i++) {
+            uint256 nullifier = transfer.inputs[i].nullifier;
+            require(!nullifiersUsed[nullifier], "Nullifier ja utilizado");
+            nullifiersUsed[nullifier] = true; 
+        }
+        
+        require(
+            verifier_1x1.verifyProof(
+                transfer.proof.pA,
+                transfer.proof.pB,
+                transfer.proof.pC,
+                transfer.proof.inR
+            ), "Transfer proof invalida"
+        );        
+
+        for (uint i = 0; i < transfer.outputs.length; i++) {            
+            _generateCommitment( transfer.outputs[i].secret);
+        }
+
+        emit AuditSecretEmmited (transfer.auditSecret);        
+
+    }
+    
+    function processTransfer1x1(Transfer1x1 memory transfer) public {
+        
+        if (!_commitments.rootExists(transfer.merkleRoot)) {
+            revert RootNotFound(transfer.merkleRoot);
+        }
+
+        for (uint i = 0; i < transfer.inputs.length; i++) {
+            uint256 nullifier = transfer.inputs[i].nullifier;
+            require(!nullifiersUsed[nullifier], "Nullifier ja utilizado");
+            nullifiersUsed[nullifier] = true; 
+        }
+        
+        require(
+            verifier_1x1.verifyProof(
+                transfer.proof.pA,
+                transfer.proof.pB,
+                transfer.proof.pC,
+                transfer.proof.inR
+            ), "Transfer proof invalida"
+        );        
+
+        for (uint i = 0; i < transfer.outputs.length; i++) {            
+            _generateCommitment( transfer.outputs[i].secret);
+        }
+
+        emit AuditSecretEmmited (transfer.auditSecret);
+
     }
    
     function processTransfer1x2(Transfer1x2 memory transfer) public {
@@ -119,7 +188,7 @@ contract Harpo {
                 transfer.proof.pA,
                 transfer.proof.pB,
                 transfer.proof.pC,
-                transfer.proof.inR//verificar se é igual ou enviar nullifier recebido
+                transfer.proof.inR
             ), "Transfer proof invalida"
         );        
 
@@ -127,8 +196,7 @@ contract Harpo {
             _generateCommitment( transfer.outputs[i].secret);
         }
 
-        emit AuditSecretEmmited (transfer.auditSecret);
-        //require(proofVerifier.verify(transfer.massConservationProof), "Mass conservation proof invalida");
+        emit AuditSecretEmmited (transfer.auditSecret);        
 
     }
 
@@ -149,7 +217,7 @@ contract Harpo {
                 transfer.proof.pA,
                 transfer.proof.pB,
                 transfer.proof.pC,
-                transfer.proof.inR//verificar se é igual ou enviar nullifier recebido
+                transfer.proof.inR
             ), "Transfer proof invalida"
         );        
 
@@ -158,7 +226,6 @@ contract Harpo {
         }
 
         emit AuditSecretEmmited (transfer.auditSecret);
-        //require(proofVerifier.verify(transfer.massConservationProof), "Mass conservation proof invalida");
 
     }
 

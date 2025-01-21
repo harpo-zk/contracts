@@ -41,23 +41,8 @@ library PoseidonT6 {
   uint constant M54 = 0x0f971162627723f3feadacb28b0c104cb8f74de508752fa8d7c0db2af13de8ee;
   uint constant M55 = 0x1b121c049cd1159e289007e0c9da9995cc4bab4c26fb888ec3972a8a2e656964;
 
-  // See here for a simplified implementation: https://github.com/vimwitch/poseidon-solidity/blob/e57becdabb65d99fdc586fe1e1e09e7108202d53/contracts/Poseidon.sol#L40
-  // Inspired by: https://github.com/iden3/circomlibjs/blob/v0.0.8/src/poseidon_slow.js
   function hash(uint[5] memory) public pure returns (uint) {
-    assembly {
-      // memory 0x00 to 0x3f (64 bytes) is scratch space for hash algos
-      // we can use it in inline assembly because we're not calling e.g. keccak
-      //
-      // memory 0x80 is the default offset for free memory
-      // we take inputs as a memory argument so we simply write over
-      // that memory after loading it
-
-      // we have the following variables at memory offsets
-      // state0 - 0x00
-      // state1 - 0x20
-      // state2 - 0x80
-      // state3 - 0xa0
-      // state4 - ...
+    assembly {      
 
       function pRound(c0, c1, c2, c3, c4, c5) {
         let state0 := add(mload(0x0), c0)
@@ -178,12 +163,10 @@ library PoseidonT6 {
           )
         )
       }
-
-      // scratch variable for exponentiation
+      
       let p
 
-      {
-        // load the inputs from memory
+      {        
         let state1 := add(mod(mload(0x80), F), 0x0ab7b291388e5c9e43c0dc1f591fb83ecdb65022e1b70af43b8a7b40c1dff7c3)
         let state2 := add(mod(mload(0xa0), F), 0x2b7cbb217896f52c9a8c088e654af21e84cde754a3cef5b15c4d5466612d6adf)
         let state3 := add(mod(mload(0xc0), F), 0x2bc6b0ddbe1d701b6570428bdc1ca1bf0da59ff3bbbb95fc2bc71c0c6e67a65c)
@@ -199,9 +182,7 @@ library PoseidonT6 {
         p := mulmod(state4, state4, F)
         state4 := mulmod(mulmod(p, p, F), state4, F)
         p := mulmod(state5, state5, F)
-        state5 := mulmod(mulmod(p, p, F), state5, F)
-
-        // state0 pow5mod and M[] multiplications are pre-calculated
+        state5 := mulmod(mulmod(p, p, F), state5, F)        
 
         mstore(
           0x0,
