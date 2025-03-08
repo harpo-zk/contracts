@@ -20,7 +20,11 @@ contract HarpoDVP {
         assetA = Harpo(_assetAaddress);
         assetB = Harpo(_assetBaddress);
     }
-    
+
+    //todo adicionar logica para cancelar dvp, removendo transações do mapping , e/ou expiração das trasnsções..
+    //todo criar função para consultar ? faz sentido no cenario privado?
+    //todo todo faz sentido emitir eventos no cenario privado?
+    //todo dvp atual para transações 1x1
     function addTransaction(Harpo.DelegatedTransfer memory newTransaction) public {
         
         for(uint i = 0; i < newTransaction.inputs.length; i++) {
@@ -41,6 +45,7 @@ contract HarpoDVP {
         transactions[transactionCounter].proof = newTransaction.proof;
         
         transactionCounter++;
+        //evento de trx adicionada aki?
         autoExecuteDVP(transactionCounter - 1);
     }
 
@@ -48,7 +53,7 @@ contract HarpoDVP {
         Harpo.DelegatedTransfer storage newTx = transactions[newTransactionId];
 
         for (uint256 i = 0; i < transactionCounter; i++) {
-            if (i == newTransactionId) continue;
+            if (i == newTransactionId) continue; // Pula a transação recém-adicionada
 
             Harpo.DelegatedTransfer storage existingTx = transactions[i];
             for (uint256 j = 0; j < existingTx.outputs.length; j++) {
@@ -58,16 +63,17 @@ contract HarpoDVP {
                         existingTx.outputs[j].secret
                     )
                 ) {
-                    executeDVP(i,newTransactionId);
+                    executeDVP(i,newTransactionId);//todo ordem dos atributos deve obedecer o asset
                     break;
                 }
             }
-        }        
+        }
+        //todo  emitir evento de transação adicionada?
     }
 
     function compareSecrets(
         uint256[] memory a,
-        uint256[] memory b
+        uint256[15] memory b
     ) internal pure returns (bool) {
         if (a.length != b.length) {
             return false;
@@ -92,7 +98,9 @@ contract HarpoDVP {
         } catch {
             revert("Transfer1 failed, reverting transaction");
         }
-                   
+        
+        //todo add status nas trxs pendente executado cancelado?
+       
         // Removendo as trxs do mapping
         delete transactions[tx1Id];
         delete transactions[tx2Id];
