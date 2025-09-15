@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.27;
 
 //import {PoseidonUnit2L, PoseidonUnit3L} from "./Poseidon.sol";

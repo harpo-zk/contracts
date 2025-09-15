@@ -69,3 +69,6 @@ deployments/localhost/
 # Misc
 *.tgz
 *.tar.gz
+
+# Development guides
+CLAUDE.md
