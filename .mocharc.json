@@ -1,0 +1,11 @@
+{
+  "timeout": 120000,
+  "recursive": true,
+  "spec": "test/**/*.test.js",
+  "reporter": "spec",
+  "slow": 30000,
+  "bail": false,
+  "color": true,
+  "exit": true,
+  "require": ["hardhat/register"]
+}

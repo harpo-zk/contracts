@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: Apache-2.0
 /*
     Copyright 2021 0KIMS association.
 
@@ -20,7 +20,7 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
-contract Groth16Verifier_mint {
+contract Groth16Verifier_priv_msg_1 {
     // Scalar field size
     uint256 constant r    = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
     // Base field size
@@ -43,20 +43,11 @@ contract Groth16Verifier_mint {
     uint256 constant deltay2 = 8495653923123431417604973247489272438418190587263600148770280649306958101930;
 
     
-    uint256 constant IC0x = 8181507256006676013943957488362281031443626894584916633841476420799592345852;
-    uint256 constant IC0y = 3591088152690383123860922319233319132279945378203342119995944490028977165539;
+    uint256 constant IC0x = 18719248936329960816029300828689976042125505307721147400384508724362536904225;
+    uint256 constant IC0y = 12347879133182618640837378229166093943528984823338132693567119343705103439688;
     
-    uint256 constant IC1x = 16221448333812404449029658032582376356995295503737934331643264692001060210321;
-    uint256 constant IC1y = 8211053259749350901718865901138362277332471801413446146875585723917747410678;
-    
-    uint256 constant IC2x = 8937244158983446967674949515848120316933467936627193238596863142479265701689;
-    uint256 constant IC2y = 19272709647252887782184907527458131392468525499627353409947135565492981598383;
-    
-    uint256 constant IC3x = 19855104748703026275543326428847173467414593979117508607109150870414289161297;
-    uint256 constant IC3y = 14992768672838478932431041352747921233787207105732425670334363755124815065322;
-    
-    uint256 constant IC4x = 15097255258953333157359269758621247787096724289648475109225096785630371526354;
-    uint256 constant IC4y = 20754150084705637911253598862569325404654606391069090455334844205305242352480;
+    uint256 constant IC1x = 14465731661234644313880964947784921728640689626425240860202405712472190283209;
+    uint256 constant IC1y = 14527169163618699466493129936624163409334073331970538845903549222080594112105;
     
  
     // Memory data
@@ -65,7 +56,7 @@ contract Groth16Verifier_mint {
 
     uint16 constant pLastMem = 896;
 
-    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[4] calldata _pubSignals) public view returns (bool) {
+    function verifyProof(uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC, uint[1] calldata _pubSignals) public view returns (bool) {
         assembly {
             function checkField(v) {
                 if iszero(lt(v, r)) {
@@ -110,12 +101,6 @@ contract Groth16Verifier_mint {
                 // Compute the linear combination vk_x
                 
                 g1_mulAccC(_pVk, IC1x, IC1y, calldataload(add(pubSignals, 0)))
-                
-                g1_mulAccC(_pVk, IC2x, IC2y, calldataload(add(pubSignals, 32)))
-                
-                g1_mulAccC(_pVk, IC3x, IC3y, calldataload(add(pubSignals, 64)))
-                
-                g1_mulAccC(_pVk, IC4x, IC4y, calldataload(add(pubSignals, 96)))
                 
 
                 // -A
@@ -173,12 +158,6 @@ contract Groth16Verifier_mint {
             checkField(calldataload(add(_pubSignals, 0)))
             
             checkField(calldataload(add(_pubSignals, 32)))
-            
-            checkField(calldataload(add(_pubSignals, 64)))
-            
-            checkField(calldataload(add(_pubSignals, 96)))
-            
-            checkField(calldataload(add(_pubSignals, 128)))
             
 
             // Validate all evaluations
