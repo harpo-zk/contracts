@@ -1,7 +1,7 @@
 {
   "name": "harpo-contracts",
   "version": "1.0.0",
-  "description": "Smart contracts for Harpo ZK UTXO privacy system",
+  "description": "Confidential settlement / privacy layer contracts for the Harpo protocol",
   "scripts": {
     "test": "npx hardhat test",
     "test:unit": "npx hardhat test test/unit/**/*.test.js",

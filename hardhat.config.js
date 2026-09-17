@@ -12,6 +12,7 @@ module.exports = {
         runs: 200,
       },
       viaIR: true, // Enable IR-based code generation for better optimization
+      evmVersion: "cancun", // OpenZeppelin 5.2 (Arrays/Bytes) usa MCOPY — exige Cancun
     },
   },
   networks: {
