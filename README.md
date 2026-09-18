@@ -1,8 +1,22 @@
 # Harpo — contratos de liquidação confidencial
 
+```
+██╗  ██╗ █████╗ ██████╗ ██████╗  ██████╗
+██║  ██║██╔══██╗██╔══██╗██╔══██╗██╔═══██╗
+███████║███████║██████╔╝██████╔╝██║   ██║
+██╔══██║██╔══██║██╔══██╗██╔═══╝ ██║   ██║
+██║  ██║██║  ██║██║  ██║██║     ╚██████╔╝
+╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝      ╚═════╝
+```
+
 Uma interface neutra para plugar diferentes mecanismos de privacidade em EVM —
 ZK-SNARK (Groth16, PLONK), assinatura de notário, ou outros — sem acoplar a
 aplicação a nenhum deles.
+
+**O mecanismo em uso hoje é o notário**, com atestação por assinatura EIP-712. Os
+domínios ZK existem para que essa escolha possa mudar sem reescrever a aplicação
+consumidora. Ver [O notário, o caso de uso
+atual](#o-notário-o-caso-de-uso-atual).
 
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.27-blue)](https://soliditylang.org/)
 [![Hardhat](https://img.shields.io/badge/Framework-Hardhat-yellow)](https://hardhat.org/)
@@ -11,6 +25,7 @@ aplicação a nenhum deles.
 - [O problema](#o-problema)
 - [Como funciona](#como-funciona)
 - [Domínios de referência](#domínios-de-referência)
+  - [O notário, o caso de uso atual](#o-notário-o-caso-de-uso-atual)
 - [Confiança: o que cada mecanismo exige](#confiança-o-que-cada-mecanismo-exige)
 - [Governança](#governança)
 - [Consumidor de referência](#consumidor-de-referência)
@@ -109,16 +124,42 @@ está por trás do balcão mudou.
 
 ## Domínios de referência
 
-| Domínio | Mecanismo |
-|---|---|
-| `HarpoZkPrivacyLayer` | ZK-SNARK (Groth16) |
-| `HarpoPlonkPrivacyLayer` | ZK-SNARK (PLONK, setup universal) |
-| `HarpoNotaryPrivacyLayer` | Assinatura EIP-712 de um notário confiável, sem ZK |
-| `HarpoTokenPrivacyLayer` | Domínio ZK para liquidação de transferência de token |
-| `HarpoZkPrivacyLayerAuditable` | Variante do domínio ZK com trilha de auditoria on-chain |
+| Domínio | Mecanismo | Situação |
+|---|---|---|
+| `HarpoNotaryPrivacyLayer` | Assinatura EIP-712 de um notário confiável, sem ZK | **em uso hoje** |
+| `HarpoZkPrivacyLayer` | ZK-SNARK (Groth16) | disponível |
+| `HarpoPlonkPrivacyLayer` | ZK-SNARK (PLONK, setup universal) | disponível |
+| `HarpoTokenPrivacyLayer` | Domínio ZK para liquidação de transferência de token | disponível |
+| `HarpoZkPrivacyLayerAuditable` | Variante do domínio ZK com trilha de auditoria on-chain | disponível |
 
 Todos implementam `ERC-165`, então é possível descobrir em tempo de execução se
 um endereço é um domínio `IPrivacyLayer` válido.
+
+### O notário, o caso de uso atual
+
+O domínio `HarpoNotaryPrivacyLayer` é o que está em uso. Uma instituição
+confiável observa a liquidação fora da blockchain e a atesta com uma assinatura
+EIP-712 sobre `Settlement(commitment, publicInputsHash)`. O contrato recupera o
+assinante e aceita apenas se for o notário registrado.
+
+Por que ele, e não ZK, neste momento:
+
+- A confiança na instituição **já existe** no arranjo atual, como num banco
+  regulado. O ZK resolveria um problema de confiança que hoje não é o gargalo.
+- É ordens de grandeza mais barato em gas e muito mais simples de operar: uma
+  verificação de assinatura, sem circuito, sem artefatos de prova, sem cerimônia
+  de setup.
+- Não depende de `.wasm` nem de `.zkey`, então roda e é testado inteiramente
+  neste repositório.
+
+O que ele custa em troca: a validade passa a depender da honestidade e da
+disponibilidade de quem assina, e a chave do notário é fixada no deploy. Trocar o
+notário significa novo deploy e uma atualização no registry.
+
+**É exatamente por isso que a interface existe.** O dia em que a confiança na
+instituição deixar de ser aceitável, por regulação ou por escala, a troca para um
+domínio ZK é uma chamada de registry, sem tocar no contrato de negócio. A
+arquitetura foi desenhada para que a escolha de hoje não vire uma amarra.
 
 ## Confiança: o que cada mecanismo exige
 
