@@ -1,6 +1,4 @@
-# 🔐 Harpo Smart Contracts
-
-<div align="center">
+# Harpo — contratos de liquidação confidencial
 
 ```
 ██╗  ██╗ █████╗ ██████╗ ██████╗  ██████╗
@@ -11,43 +9,60 @@
 ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝      ╚═════╝
 ```
 
-**🔒 Camada de liquidação confidencial, agnóstica de mecanismo, para EVM**
+Uma interface neutra para plugar diferentes mecanismos de privacidade em EVM —
+ZK-SNARK (Groth16, PLONK), assinatura de notário, ou outros — sem acoplar a
+aplicação a nenhum deles.
 
-*Uma interface neutra para plugar diferentes mecanismos de privacidade — ZK-SNARK
-(Groth16, PLONK), assinatura de notário, ou outros — sem acoplar a aplicação a
-nenhum deles*
+**O mecanismo em uso hoje é o notário**, com atestação por assinatura EIP-712. Os
+domínios ZK existem para que essa escolha possa mudar sem reescrever a aplicação
+consumidora. Ver [O notário, o caso de uso
+atual](#o-notário-o-caso-de-uso-atual).
 
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.27-blue)](https://soliditylang.org/)
 [![Hardhat](https://img.shields.io/badge/Framework-Hardhat-yellow)](https://hardhat.org/)
 [![License](https://img.shields.io/badge/License-Apache--2.0-blue)](./LICENSE)
 
-</div>
+- [O problema](#o-problema)
+- [Como funciona](#como-funciona)
+- [Domínios de referência](#domínios-de-referência)
+  - [O notário, o caso de uso atual](#o-notário-o-caso-de-uso-atual)
+- [Confiança: o que cada mecanismo exige](#confiança-o-que-cada-mecanismo-exige)
+- [Governança](#governança)
+- [Consumidor de referência](#consumidor-de-referência)
+- [Estrutura do repositório](#estrutura-do-repositório)
+- [Instalação e uso](#instalação-e-uso)
+- [Testes](#testes)
+- [Estado atual](#estado-atual)
+- [Licença](#licença)
 
----
+## O problema
 
-## 🧠 O que isso resolve (sem jargão técnico)
+Uma empresa precisa provar a um parceiro, ou a um sistema automatizado, que
+determinado pagamento aconteceu e é válido — sem revelar o valor, quem pagou ou
+quem recebeu. Isso é uma **liquidação confidencial**.
 
-Imagine que uma empresa precisa provar pra um parceiro, ou pra um sistema
-automatizado, que **"esse pagamento aconteceu e é válido"** — mas sem revelar
-o valor, nem quem pagou, nem quem recebeu. Isso é uma **liquidação
-confidencial**.
+Há várias formas de provar isso:
 
-Existem várias formas de provar isso sem revelar os dados:
-
-- Uma **prova matemática** (criptografia de conhecimento zero — "ZK"), que
-  qualquer computador consegue conferir sozinho, sem confiar em ninguém.
-- A **assinatura de uma instituição confiável** (um "notário" digital) que
-  atesta que observou o pagamento acontecer.
+- Uma **prova matemática** de conhecimento zero, que qualquer computador confere
+  sozinho, sem depender da palavra de quem está provando.
+- A **assinatura de uma instituição confiável**, um notário digital que atesta
+  ter observado o pagamento.
 - Outros métodos que ainda vão surgir.
 
-O problema: hoje, cada forma exige escrever um pedaço de código diferente,
-colado direto na aplicação. Se a empresa quiser trocar de método depois — ou
-aceitar mais de um — precisa **reescrever a aplicação**.
+Cada forma desloca a confiança para um lugar diferente, e nenhuma a elimina por
+completo. A seção [Confiança](#confiança-o-que-cada-mecanismo-exige) detalha para
+onde ela vai em cada caso.
 
-**Este repositório resolve isso com uma pergunta única e neutra:**
-`verifyConfidentialSettlement` — "essa liquidação confidencial é válida?" Sim
-ou não. A aplicação nunca precisa saber *como* a resposta foi calculada.
-Trocar o método por trás é uma configuração, não uma reescrita.
+Hoje, cada forma exige um pedaço de código diferente, colado dentro da
+aplicação. Trocar de método, ou aceitar mais de um, significa reescrever a
+aplicação.
+
+Este repositório resolve isso com uma pergunta única e neutra:
+`verifyConfidentialSettlement`, ou seja, "essa liquidação confidencial é
+válida?". Sim ou não. A aplicação nunca precisa saber como a resposta foi
+calculada, e trocar o método por trás vira configuração, não reescrita.
+
+## Como funciona
 
 ```mermaid
 sequenceDiagram
@@ -61,21 +76,11 @@ sequenceDiagram
     Dom-->>App: sim / não
 ```
 
-*A aplicação nunca fala direto com "o ZK" ou "o notário" — ela pergunta pro
-livro de endereços quem está responsável agora, e faz sempre a mesma
-pergunta, para quem quer que seja.*
+A aplicação nunca fala direto com o ZK ou com o notário. Ela pergunta ao livro
+de endereços quem está responsável agora, e faz sempre a mesma pergunta, para
+quem quer que seja.
 
-### Por que isso importa pro negócio
-
-- **Sem vendor lock-in criptográfico.** Hoje o método pode ser uma prova ZK;
-  amanhã, por regulação, custo, ou disponibilidade de fornecedor, pode virar
-  outro — sem parar o sistema nem reescrever a aplicação.
-- **Auditoria sob controle, não tudo-ou-nada.** É possível autorizar a
-  abertura de uma transação específica para um auditor, com múltiplas
-  aprovações exigidas — sem dar a um único auditor acesso a tudo.
-- **Nenhuma chave única decide sozinha.** Trocar o método de verificação em
-  produção exige várias pessoas concordando e um prazo de espera — não é uma
-  ação de um clique de um único administrador.
+Trocar o método ativo não toca no contrato de negócio:
 
 ```mermaid
 sequenceDiagram
@@ -91,40 +96,74 @@ sequenceDiagram
     Novo-->>App: sim / não
 ```
 
-*O código da aplicação nesse segundo diagrama é **idêntico** ao do primeiro —
-só o que está "por trás do balcão" mudou.*
+O código da aplicação no segundo diagrama é idêntico ao do primeiro. Só o que
+está por trás do balcão mudou.
 
----
+### O que isso muda para o negócio
 
-## 🎯 Visão geral (técnica)
+- **Sem dependência de um fornecedor criptográfico.** Hoje o método pode ser uma
+  prova ZK; amanhã, por regulação, custo ou disponibilidade, pode ser outro, sem
+  parar o sistema.
+- **Auditoria sob controle, não tudo ou nada.** É possível autorizar a abertura
+  de uma transação específica, exigindo múltiplas aprovações, sem dar a um
+  auditor acesso a tudo.
+- **Dá para tirar a decisão de uma chave só.** O repositório inclui um guardião
+  M-de-N com prazo de espera, que pode ser colocado na frente da troca do método.
+  É uma camada opcional e precisa ser configurada: por padrão, o registry nasce
+  com um único administrador.
 
-Este repositório resolve o problema acima com uma interface pequena e
-estável, `IPrivacyLayer`, e várias implementações (**domínios**) atrás dela:
+### A interface
 
-- **`domainId()`** — identificador legível do domínio.
-- **`privacyModel()`** — a família do mecanismo (`ZK`, `NOTARY`, ...).
-- **`verifyConfidentialSettlement(commitment, proof, publicInputs)`** — a
-  pergunta central: essa liquidação confidencial é válida?
+`IPrivacyLayer` tem três métodos:
 
-A aplicação consumidora fala só com a interface. Trocar o domínio por trás
-dela é uma chamada de registry — sem tocar no contrato de negócio.
-
-### Domínios de referência incluídos
-
-| Domínio | Mecanismo |
+| Método | O que devolve |
 |---|---|
-| `HarpoZkPrivacyLayer` | ZK-SNARK (Groth16) |
-| `HarpoPlonkPrivacyLayer` | ZK-SNARK (PLONK, setup universal) |
-| `HarpoNotaryPrivacyLayer` | Assinatura EIP-712 de um notário confiável — zero ZK |
-| `HarpoTokenPrivacyLayer` | Domínio ZK para liquidação de transferência de token |
-| `HarpoZkPrivacyLayerAuditable` | Variante do domínio ZK com trilha de auditoria on-chain |
+| `domainId()` | identificador legível do domínio |
+| `privacyModel()` | a família do mecanismo (`ZK`, `NOTARY`, ...) |
+| `verifyConfidentialSettlement(commitment, proof, publicInputs)` | a pergunta central: essa liquidação é válida? |
 
-Todos implementam `ERC-165` (`supportsInterface`), então é possível descobrir
-em tempo de execução se um endereço é um domínio `IPrivacyLayer` válido.
+## Domínios de referência
 
-## 🔀 Como cada domínio verifica uma liquidação, por dentro
+| Domínio | Mecanismo | Situação |
+|---|---|---|
+| `HarpoNotaryPrivacyLayer` | Assinatura EIP-712 de um notário confiável, sem ZK | **em uso hoje** |
+| `HarpoZkPrivacyLayer` | ZK-SNARK (Groth16) | disponível |
+| `HarpoPlonkPrivacyLayer` | ZK-SNARK (PLONK, setup universal) | disponível |
+| `HarpoTokenPrivacyLayer` | Domínio ZK para liquidação de transferência de token | disponível |
+| `HarpoZkPrivacyLayerAuditable` | Variante do domínio ZK com trilha de auditoria on-chain | disponível |
 
-### Domínio ZK (Groth16 / PLONK) — prova matemática, sem confiar em ninguém
+Todos implementam `ERC-165`, então é possível descobrir em tempo de execução se
+um endereço é um domínio `IPrivacyLayer` válido.
+
+### O notário, o caso de uso atual
+
+O domínio `HarpoNotaryPrivacyLayer` é o que está em uso. Uma instituição
+confiável observa a liquidação fora da blockchain e a atesta com uma assinatura
+EIP-712 sobre `Settlement(commitment, publicInputsHash)`. O contrato recupera o
+assinante e aceita apenas se for o notário registrado.
+
+Por que ele, e não ZK, neste momento:
+
+- A confiança na instituição **já existe** no arranjo atual, como num banco
+  regulado. O ZK resolveria um problema de confiança que hoje não é o gargalo.
+- É ordens de grandeza mais barato em gas e muito mais simples de operar: uma
+  verificação de assinatura, sem circuito, sem artefatos de prova, sem cerimônia
+  de setup.
+- Não depende de `.wasm` nem de `.zkey`, então roda e é testado inteiramente
+  neste repositório.
+
+O que ele custa em troca: a validade passa a depender da honestidade e da
+disponibilidade de quem assina, e a chave do notário é fixada no deploy. Trocar o
+notário significa novo deploy e uma atualização no registry.
+
+**É exatamente por isso que a interface existe.** O dia em que a confiança na
+instituição deixar de ser aceitável, por regulação ou por escala, a troca para um
+domínio ZK é uma chamada de registry, sem tocar no contrato de negócio. A
+arquitetura foi desenhada para que a escolha de hoje não vire uma amarra.
+
+## Confiança: o que cada mecanismo exige
+
+### Domínio ZK (Groth16 / PLONK)
 
 ```mermaid
 sequenceDiagram
@@ -139,11 +178,19 @@ sequenceDiagram
     Dom-->>Quem: válida ou inválida
 ```
 
-*A blockchain **nunca vê** os dados privados — só confirma que a "conta
-fecha" matematicamente. Ninguém, nem o próprio contrato, aprende o valor ou
-quem participou.*
+A blockchain nunca vê os dados privados: só confirma que a conta fecha
+matematicamente. O contrato recebe apenas a prova e o commitment, que são
+públicos e não revelam os dados por trás deles.
 
-### Domínio Notário — uma instituição confiável atesta, sem ZK
+**O que o ZK não elimina.** A verificação de uma prova Groth16 depende de uma
+cerimônia de setup por circuito. Quem conhecer o material secreto descartado
+nessa cerimônia consegue forjar provas que o contrato aceita como válidas. Por
+isso a cerimônia é feita entre várias partes independentes, e basta que uma
+delas tenha sido honesta. O PLONK usa um setup universal, que serve para vários
+circuitos, mas também depende de uma cerimônia. Um domínio ZK troca confiar na
+contraparte por confiar em como o setup foi feito, não por não confiar em nada.
+
+### Domínio notário
 
 ```mermaid
 sequenceDiagram
@@ -157,13 +204,20 @@ sequenceDiagram
     Dom-->>Inst: válida ou inválida
 ```
 
-*Mais simples e barato que ZK, mas troca "matemática" por "confiar numa
-instituição". Boa opção quando essa confiança já existe (ex.: um banco
-regulado) e o custo/complexidade de ZK não se justifica.*
+Mais simples e barato que ZK, mas troca matemática por confiança numa
+instituição. Boa opção quando essa confiança já existe, como num banco regulado,
+e o custo de ZK não se justifica.
 
-## 🛡️ Governança: nenhuma chave única decide sozinha
+## Governança
 
-### Trocar o método ativo exige várias aprovações + prazo de espera
+As proteções desta seção são opcionais e precisam ser configuradas. Por padrão,
+`HarpoRegistry` é criado com um único endereço administrador, que troca o método
+ativo com uma chamada. Para obter o comportamento dos diagramas é preciso
+conceder o papel de administração ao `HarpoRegistryGuardian` e renunciar ao papel
+de gerência de papéis. Caso contrário, quem o retiver pode se reconceder a
+permissão e contornar o guardião.
+
+### Trocar o método ativo, com o guardião configurado
 
 ```mermaid
 sequenceDiagram
@@ -179,8 +233,8 @@ sequenceDiagram
     Guard->>Reg: agora sim, troca o endereço
 ```
 
-*Ninguém troca o "método de verificação" sozinho, de uma hora pra outra. Dá
-tempo de qualquer pessoa perceber e reagir antes da troca valer.*
+Assim ninguém troca o método de verificação sozinho, de uma hora para outra. Dá
+tempo de qualquer pessoa perceber e reagir antes da troca valer.
 
 ### Auditoria de uma transação específica, sob quórum
 
@@ -193,13 +247,19 @@ sequenceDiagram
     A1->>Disc: pede a abertura de 1 transação, com motivo registrado
     A2->>Disc: aprova o mesmo pedido
     Note over Disc: número mínimo de aprovações atingido
-    Disc-->>A1: liberado — só para essa transação, tudo público
+    Disc-->>A1: liberado, só para essa transação, tudo público
 ```
 
-*Nenhum auditor sozinho abre o que quiser. E cada pedido de abertura fica
-registrado publicamente, com o motivo — o auditor também é auditado.*
+Nenhum auditor sozinho abre o que quiser, e cada pedido fica registrado
+publicamente com o motivo, então o auditor também é auditado.
 
-## 📦 Consumidor de referência: amarrado ao processo, sem replay
+**Limite conhecido.** O quórum protege contra um auditor isolado, não contra o
+administrador do contrato de disclosure: quem detém `admin` pode alterar o número
+mínimo de aprovações e a lista de autoridades. Remover uma autoridade também não
+apaga as aprovações que ela já havia dado. Em uso real, esse `admin` deve ser um
+multisig ou um contrato de governança, não uma chave pessoal.
+
+## Consumidor de referência
 
 ```mermaid
 sequenceDiagram
@@ -215,58 +275,50 @@ sequenceDiagram
     Cons->>Cons: marca como liquidado (nunca aceita 2x)
 ```
 
-*Duas garantias num contrato só: (1) uma prova só liquida o processo que
-"esperava" exatamente aquele selo — não dá pra reaproveitar numa liquidação
-diferente; (2) o mesmo processo não pode ser liquidado duas vezes.*
+São duas garantias num contrato só. Uma prova só liquida o processo que esperava
+exatamente aquele selo, então não dá para reaproveitá-la numa liquidação
+diferente. E o mesmo processo não pode ser liquidado duas vezes.
 
-## 🏗️ Estrutura
+## Estrutura do repositório
 
 ```
 contracts/
 ├── interfaces/
-│   ├── IPrivacyLayer.sol                      # núcleo de 3 métodos
-│   └── IAuditableConfidentialSettlementDomain.sol  # extensão opcional de auditoria
-├── HarpoZkPrivacyLayer.sol                    # domínio ZK/Groth16
-├── HarpoPlonkPrivacyLayer.sol                 # domínio ZK/PLONK
-├── HarpoNotaryPrivacyLayer.sol                # domínio notary (sem ZK)
-├── HarpoTokenPrivacyLayer.sol                 # domínio de liquidação de token
-├── HarpoZkPrivacyLayerAuditable.sol           # domínio ZK auditável
-├── HarpoRegistry.sol                          # address book (nome → endereço, versionado)
-├── HarpoResolver.sol                          # mixin de resolução por nome, com trilha de uso
-├── HarpoRegistryGuardian.sol                  # guardião M-de-N + timelock na frente do registry
-├── HarpoSettlementConsumer.sol                # consumidor de referência
-├── HarpoSelectiveDisclosure.sol               # autorização de auditoria por quórum
-├── verifiers/                                 # verifiers Groth16/PLONK (código gerado)
-└── mocks/                                     # mocks para teste local
+│   ├── IPrivacyLayer.sol                           # núcleo de 3 métodos
+│   └── IAuditableConfidentialSettlementDomain.sol   # extensão opcional de auditoria
+├── HarpoZkPrivacyLayer.sol                         # domínio ZK/Groth16
+├── HarpoPlonkPrivacyLayer.sol                      # domínio ZK/PLONK
+├── HarpoNotaryPrivacyLayer.sol                     # domínio notary (sem ZK)
+├── HarpoTokenPrivacyLayer.sol                      # domínio de liquidação de token
+├── HarpoZkPrivacyLayerAuditable.sol                # domínio ZK auditável
+├── HarpoRegistry.sol                               # address book (nome → endereço, versionado)
+├── HarpoResolver.sol                               # mixin de resolução por nome, com trilha de uso
+├── HarpoRegistryGuardian.sol                       # guardião M-de-N + timelock na frente do registry
+├── HarpoSettlementConsumer.sol                     # consumidor de referência
+├── HarpoSelectiveDisclosure.sol                    # autorização de auditoria por quórum
+├── verifiers/                                      # verifiers Groth16/PLONK (código gerado)
+└── mocks/                                          # mocks para teste local
+test/unit/PrivacyLayer.test.js                      # suíte de smoke tests
+hardhat.config.js
+.env.example
 ```
 
-## ⚙️ Instalação e uso
+Em `verifiers/` há seis arquivos. Três correspondem aos domínios acima
+(`PixPaymentVerify`, `PixPaymentVerifyPlonk`, `TokenSettlementVerify`). Os outros
+três (`ComplianceRangeVerify`, `KycInclusionVerify`, `SanctionsExclusionVerify`)
+são de circuitos de compliance que ainda não têm domínio correspondente neste
+repositório.
 
-### Pré-requisitos
+## Instalação e uso
 
-- Node.js 18+
-- npm
-
-### Configuração
+Requer Node.js 20 ou superior, testado em 22, e npm.
 
 ```bash
 npm install
 npx hardhat compile
 ```
 
-### Testes
-
-```bash
-npx hardhat test
-```
-
-Os testes cobrem o domínio `NOTARY` de ponta a ponta (assinatura EIP-712
-válida/inválida/adulterada, `ERC-165`, resolução por nome via `HarpoRegistry`,
-composição registry → consumidor) sem depender de artefatos de circuito ZK
-(`.wasm`/`.zkey`). Os circuitos que os domínios ZK verificam vivem em
-[`harpo-zk/circuits`](https://github.com/harpo-zk/circuits).
-
-## 📦 Uso básico
+Deploy de um domínio, registro por nome e consumo pela interface:
 
 ```solidity
 // 1. Deploy de um domínio (exemplo: notary)
@@ -279,22 +331,54 @@ HarpoNotaryPrivacyLayer layer = new HarpoNotaryPrivacyLayer(
 // 2. Registro por nome
 registry.set("PrivacyLayer", address(layer));
 
-// 3. Um consumidor resolve pelo nome e nunca precisa saber qual mecanismo está por trás
+// 3. Um consumidor resolve pelo nome e nunca precisa saber
+//    qual mecanismo está por trás
 IPrivacyLayer domain = IPrivacyLayer(registry.get("PrivacyLayer"));
 bool ok = domain.verifyConfidentialSettlement(commitment, proof, publicInputs);
 ```
 
-Trocar `HarpoNotaryPrivacyLayer` por `HarpoZkPrivacyLayer` (ou qualquer outra
-implementação de `IPrivacyLayer`) é uma única chamada `registry.set(...)` —
-nada no consumidor muda.
+Trocar `HarpoNotaryPrivacyLayer` por `HarpoZkPrivacyLayer`, ou por qualquer outra
+implementação de `IPrivacyLayer`, é uma única chamada `registry.set`. Nada no
+consumidor muda.
 
-## 🧪 Teste de referência
+## Testes
 
-[`test/unit/PrivacyLayer.test.js`](test/unit/PrivacyLayer.test.js) demonstra o
-fluxo completo (deploy do domínio, registro por nome, verificação de uma
-liquidação, casos de rejeição) sem depender de artefatos de circuito ZK.
+```bash
+npx hardhat test
+```
 
-## 📄 Licença
+A suíte atual são quatro testes de smoke, todos sobre o domínio `NOTARY`, o único
+que não precisa de artefatos de circuito ZK (`.wasm` e `.zkey`). Isso permite
+rodar tudo neste repositório sozinho. Os circuitos que os domínios ZK verificam
+vivem em [harpo-zk/circuits](https://github.com/harpo-zk/circuits).
+
+Está coberto: assinatura EIP-712 válida, de signatário errado e com
+`publicInputs` adulterados; assinatura malformada devolvendo `false` sem
+reverter; `ERC-165`; e o `HarpoRegistry` resolvendo por nome, versionando e
+recusando quem não tem permissão.
+
+O arquivo de referência é
+[`test/unit/PrivacyLayer.test.js`](test/unit/PrivacyLayer.test.js). O último
+bloco mostra a resolução por nome chamando a interface diretamente; um contrato
+consumidor ainda não é exercitado ali.
+
+## Estado atual
+
+Este é um repositório de implementação de referência, em desenvolvimento. O que
+vale saber antes de usar:
+
+- **Sem cobertura de teste** para `HarpoSettlementConsumer`,
+  `HarpoRegistryGuardian`, `HarpoSelectiveDisclosure`,
+  `HarpoZkPrivacyLayerAuditable`, `HarpoTokenPrivacyLayer` e `HarpoResolver`.
+  Eles compilam, e as garantias que implementam estão descritas nos diagramas
+  acima, mas a evidência ainda não está na suíte.
+- **Sem auditoria externa** de nenhum contrato.
+- **As cerimônias de setup dos circuitos ZK** são de desenvolvimento, não de
+  produção. Ver [harpo-zk/circuits](https://github.com/harpo-zk/circuits).
+- **Governança e disclosure** têm os limites descritos nas seções acima: são
+  camadas opcionais, e o administrador retém poderes de configuração.
+
+## Licença
 
 Apache-2.0 (ver [`LICENSE`](LICENSE)). Alguns arquivos individuais podem
 declarar uma licença diferente no próprio cabeçalho SPDX.
